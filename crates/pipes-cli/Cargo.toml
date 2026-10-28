@@ -1,0 +1,21 @@
+[package]
+name = "pipes-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "pipes"
+path = "src/main.rs"
+
+[dependencies]
+clap.workspace = true
+pipes-core = { path = "../pipes-core" }
+serde.workspace = true
+serde_json.workspace = true
+ctrlc.workspace = true
+
+[dev-dependencies]
+assert_cmd.workspace = true
+predicates.workspace = true
+tempfile.workspace = true

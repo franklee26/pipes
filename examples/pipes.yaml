@@ -1,0 +1,42 @@
+api: pipes/v1
+app: pipes
+name: Pipes
+
+source:
+  path: ..
+  snapshot: working-tree
+  require_clean: false
+
+version:
+  scheme: semver
+  from: VERSION
+
+execution:
+  timeout: 20m
+
+prepare:
+  - id: compile
+    exec: [cargo, check, --workspace, --locked]
+
+stages:
+  - id: test
+    checks:
+      - id: rust
+        exec: [cargo, test, -p, pipes-core, -p, pipes-cli, --locked]
+    require: [checks.passed, prepare.compile.passed]
+
+  - id: beta
+    checks:
+      - id: interface
+        exec: [npm, test]
+    require: [previous.passed, checks.passed]
+
+  - id: gamma
+    require: [previous.passed, approval.local]
+
+  - id: prod
+    require: [previous.passed, approval.local]
+
+retention:
+  mode: keep-all
+  protect: [stage_heads, pins, active_runs]

@@ -1,0 +1,48 @@
+api: pipes/v1
+app: pipes-check-sequences
+name: Pipes / staged check sets
+
+source:
+  path: ..
+
+version:
+  scheme: semver
+  from: VERSION
+
+execution:
+  max_parallel: auto
+  timeout: 20m
+
+stages:
+  - id: test
+    checks:
+      - id: manifest
+        exec: [cargo, run, --locked, -p, pipes-cli, --, validate, examples/pipes.yaml]
+    require: [checks.passed]
+
+  - id: beta
+    after: [test]
+    checks:
+      - id: quick-tests
+        parallel:
+          - id: typescript
+            exec: [npm, run, check]
+          - id: rust-unit
+            exec: [cargo, test, --locked, -p, pipes-core, -p, pipes-cli]
+
+      - id: acceptance
+        max_parallel: 2
+        parallel:
+          - id: interface
+            exec: [npm, test]
+          - id: package-checks
+            sequence:
+              - id: frontend-build
+                exec: [npm, run, build:web]
+              - id: example-validation
+                exec: [cargo, run, --locked, -p, pipes-cli, --, validate, examples/forks.yaml]
+    require: [previous.passed, checks.passed]
+
+  - id: prod
+    after: [beta]
+    require: [previous.passed, approval.local]

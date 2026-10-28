@@ -1,0 +1,48 @@
+api: pipes/v1
+app: pipes-runner
+name: Pipes / real commands and custom status
+
+source:
+  path: ..
+  snapshot: working-tree
+  require_clean: false
+
+version:
+  from: VERSION
+
+execution:
+  max_parallel: 2
+  timeout: 20m
+
+stages:
+  - id: test
+    checks:
+      - id: suites
+        parallel:
+          - id: rust
+            exec: [cargo, test, --locked, -p, pipes-core, -p, pipes-cli]
+          - id: interface
+            exec: [npm, test]
+      - id: version-contract
+        exec:
+          - node
+          - -e
+          - |
+            const fs = require("node:fs");
+            const path = require("node:path");
+            process.stdout.write("Checking VERSION with a user-owned JSON adapter...\n");
+            const version = fs.readFileSync("VERSION", "utf8").trim();
+            const status = /^\d+\.\d+\.\d+$/.test(version) ? "passed" : "failed";
+            fs.mkdirSync(path.dirname(process.env.PIPES_RESULT_FILE), { recursive: true });
+            fs.writeFileSync(process.env.PIPES_RESULT_FILE, JSON.stringify({ execution: { status } }));
+            process.stdout.write(`VERSION ${version}: ${status}\n`);
+        result:
+          type: json-file
+          path: target/pipes/version-status.json
+          pointer: /execution/status
+          success: passed
+          failure: failed
+    require: [checks.passed]
+
+  - id: reviewed
+    require: [previous.passed, approval.local]

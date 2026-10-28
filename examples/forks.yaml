@@ -1,0 +1,41 @@
+api: pipes/v1
+app: pipes-forks
+name: Pipes / branched checks
+
+source:
+  path: ..
+
+version:
+  scheme: semver
+  from: VERSION
+
+stages:
+  - id: test
+    after: []
+    checks:
+      - id: unit
+        exec: [cargo, test, -p, pipes-core, -p, pipes-cli, --locked]
+    require: [checks.passed]
+
+  - id: beta-linux
+    after: [test]
+    require: [previous.passed]
+
+  - id: beta-macos
+    after: [test]
+    require: [previous.passed]
+
+  - id: docs
+    after: [test]
+    checks:
+      - id: documentation
+        exec: [cargo, doc, --no-deps]
+    require: [previous.passed, checks.passed]
+
+  - id: gamma
+    after: [beta-linux, beta-macos]
+    require: [previous.passed, approval.local]
+
+  - id: prod
+    after: [gamma]
+    require: [previous.passed, approval.local]

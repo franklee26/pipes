@@ -1,0 +1,89 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Pipes: check UI",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "check"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "osx": {
+        "options": {
+          "env": { "PATH": "/opt/homebrew/opt/node@24/bin:/usr/local/opt/node@24/bin:${env:PATH}" }
+        }
+      },
+      "problemMatcher": ["$tsc"],
+      "group": "build"
+    },
+    {
+      "label": "Pipes: build UI",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "build:web"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "osx": {
+        "options": {
+          "env": { "PATH": "/opt/homebrew/opt/node@24/bin:/usr/local/opt/node@24/bin:${env:PATH}" }
+        }
+      },
+      "problemMatcher": ["$tsc"],
+      "group": "build"
+    },
+    {
+      "label": "Pipes: test UI",
+      "type": "shell",
+      "command": "npm",
+      "args": ["test"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "osx": {
+        "options": {
+          "env": { "PATH": "/opt/homebrew/opt/node@24/bin:/usr/local/opt/node@24/bin:${env:PATH}" }
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pipes: build desktop",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "build"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "osx": {
+        "args": ["run", "build", "--", "--bundles", "app"],
+        "options": {
+          "env": { "PATH": "/opt/homebrew/opt/node@24/bin:/usr/local/opt/node@24/bin:${env:PATH}" }
+        }
+      },
+      "problemMatcher": ["$rustc"],
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "Pipes: web preview",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "dev", "--workspace", "apps/desktop"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "osx": {
+        "options": {
+          "env": { "PATH": "/opt/homebrew/opt/node@24/bin:/usr/local/opt/node@24/bin:${env:PATH}" }
+        }
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Pipes: dev",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "dev"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "osx": {
+        "options": {
+          "env": { "PATH": "/opt/homebrew/opt/node@24/bin:/usr/local/opt/node@24/bin:${env:PATH}" }
+        }
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    }
+  ]
+}

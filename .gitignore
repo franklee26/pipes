@@ -1,0 +1,11 @@
+/target/
+node_modules/
+/apps/desktop/dist/
+/apps/desktop/src-tauri/gen/
+*.tsbuildinfo
+*.log
+/.pipes-dev/
+.DS_Store
+.env
+.env.*
+!.env.example

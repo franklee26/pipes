@@ -1,0 +1,18 @@
+{
+  "name": "pipes",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/desktop"
+  ],
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "dev": "npm run tauri --workspace apps/desktop -- dev",
+    "build": "npm run tauri --workspace apps/desktop -- build",
+    "build:web": "npm run build --workspace apps/desktop",
+    "check": "npm run check --workspace apps/desktop",
+    "test": "npm run test --workspace apps/desktop"
+  }
+}

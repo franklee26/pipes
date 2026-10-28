@@ -1,0 +1,2479 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>pipes / pipelines / concept</title>
+  <style>
+    :root {
+      --paper: #f2efe4;
+      --paper-deep: #e8e4d5;
+      --surface: #fbfaf5;
+      --surface-raised: #ffffff;
+      --ink: #193327;
+      --ink-soft: #2c473a;
+      --muted: #526356;
+      --muted-light: #748477;
+      --line: #c5cbbd;
+      --line-strong: #9fa998;
+      --green: #1d4d38;
+      --green-mid: #2b6a4e;
+      --green-bright: #399368;
+      --green-soft: #e6efe8;
+      --green-tint: #f1f6f1;
+      --orange: #c04d1b;
+      --orange-bright: #e0632b;
+      --orange-soft: #fbeadb;
+      --orange-tint: #fdf5ed;
+      --amber: #b86b14;
+      --amber-soft: #faeedb;
+      --red: #b4372a;
+      --red-soft: #fae6e3;
+      --sidebar: #153528;
+      --sidebar-ink: #d4dfd0;
+      --mono: "Courier New", Courier, monospace;
+      --shadow-card: 0 2px 0 rgba(21, 53, 40, 0.06), 0 8px 20px -12px rgba(21, 53, 40, 0.12);
+      --shadow-node: 0 2px 0 rgba(21, 53, 40, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 14px/1.5 var(--mono);
+      font-variant-numeric: tabular-nums;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input, code, pre { font: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button { color: inherit; cursor: pointer; }
+    button:disabled { cursor: not-allowed; }
+    a { color: inherit; text-decoration: none; }
+    button:focus-visible, a:focus-visible, summary:focus-visible, [tabindex]:focus-visible {
+      outline: 2px solid var(--orange);
+      outline-offset: 3px;
+    }
+
+    .icon {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: square;
+      stroke-linejoin: miter;
+      flex: none;
+    }
+    .small { width: 14px; height: 14px; }
+
+    /* Layout Shell */
+    .shell {
+      display: grid;
+      grid-template-columns: 188px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: var(--sidebar);
+      color: var(--sidebar-ink);
+      padding: 28px 16px 24px;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #0e261c;
+    }
+    .brand {
+      color: #f8f4e3;
+      font-size: 30px;
+      font-weight: bold;
+      letter-spacing: -2px;
+      padding: 0 12px;
+      display: inline-flex;
+      align-items: center;
+    }
+    .brand span:last-child {
+      color: #f09c60;
+      animation: cursor-blink 1.2s steps(2, start) infinite;
+    }
+    .sidebar-label {
+      margin: 4px 12px 34px;
+      color: #8fa691;
+      font-size: 11px;
+      font-weight: bold;
+      letter-spacing: 1.6px;
+    }
+    .nav { display: grid; gap: 6px; }
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 12px;
+      border: 1px solid transparent;
+      border-radius: 3px;
+      background: none;
+      text-align: left;
+      font-size: 13px;
+      font-weight: bold;
+      color: #c4d2bf;
+      transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+    }
+    .nav-link .index {
+      color: #829c85;
+      font-size: 11px;
+      font-weight: normal;
+      padding: 1px 5px;
+      border: 1px solid rgba(154, 178, 152, 0.25);
+      border-radius: 2px;
+    }
+    .nav-link:hover {
+      background: #1f4635;
+      color: #fff9ec;
+    }
+    .nav-link.active {
+      background: #26513d;
+      border-color: #5e7c63;
+      color: #fff8e7;
+      box-shadow: inset 3px 0 0 #f09c60;
+    }
+    .nav-link.active .index {
+      color: #f4ae78;
+      border-color: rgba(244, 174, 120, 0.45);
+      background: rgba(240, 156, 96, 0.12);
+    }
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 60px 12px 0;
+      font-size: 11px;
+      color: #bfd0b8;
+    }
+    .status-online {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-weight: bold;
+      color: #dcf2e2;
+    }
+    .dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .dot.pulse {
+      background: #52d18c;
+      box-shadow: 0 0 0 3px rgba(82, 209, 140, 0.22);
+    }
+    .host {
+      border-top: 1px solid #355846;
+      padding-top: 14px;
+      margin-top: 12px;
+      line-height: 1.8;
+      color: #96ad98;
+      font-size: 11px;
+    }
+
+    /* Main & Topbar */
+    .main { min-width: 0; }
+    .topbar {
+      min-height: 62px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 34px;
+      gap: 16px;
+      background: var(--surface);
+    }
+    .breadcrumb {
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .breadcrumb strong {
+      color: var(--ink);
+      font-weight: bold;
+      background: var(--paper);
+      padding: 2px 8px;
+      border: 1px solid var(--line);
+      border-radius: 2px;
+    }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+    .demo {
+      border: 1px solid var(--line-strong);
+      background: var(--paper);
+      color: var(--ink-soft);
+      font-size: 10px;
+      font-weight: bold;
+      padding: 3px 8px;
+      letter-spacing: 1px;
+      border-radius: 2px;
+    }
+    .screen-switch {
+      display: flex;
+      gap: 18px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .screen-switch a {
+      padding: 20px 2px 17px;
+      border-bottom: 3px solid transparent;
+      color: var(--muted);
+      transition: color 140ms ease, border-color 140ms ease;
+    }
+    .screen-switch a:hover { color: var(--ink); }
+    .screen-switch a.active {
+      color: var(--green);
+      border-bottom-color: var(--orange);
+    }
+
+    /* Content Area */
+    .content {
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 28px 34px 32px;
+    }
+    .page-heading {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+    h1 {
+      font-size: 32px;
+      font-weight: bold;
+      letter-spacing: -1.2px;
+      margin: 0;
+      line-height: 1.2;
+    }
+    .subline {
+      font-size: 12px;
+      font-weight: bold;
+      color: var(--muted);
+      margin: 8px 0 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .subline-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 8px;
+      border-radius: 2px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      font-size: 11px;
+      color: var(--ink-soft);
+    }
+    .subline-chip.running {
+      border-color: #d68b59;
+      background: var(--orange-tint);
+      color: var(--orange);
+    }
+
+    /* Buttons */
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .button {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      border: 1px solid var(--green);
+      background: var(--surface);
+      padding: 8px 15px;
+      border-radius: 3px;
+      font-size: 12px;
+      font-weight: bold;
+      box-shadow: 0 2px 0 rgba(21, 53, 40, 0.1);
+      transition: transform 100ms ease, background 140ms ease, box-shadow 100ms ease;
+    }
+    .button:hover:not(:disabled) {
+      background: var(--green-soft);
+      transform: translateY(-1px);
+      box-shadow: 0 3px 0 rgba(21, 53, 40, 0.14);
+    }
+    .button:active:not(:disabled) {
+      transform: translateY(1px);
+      box-shadow: 0 1px 0 rgba(21, 53, 40, 0.1);
+    }
+    .button.primary {
+      background: var(--orange);
+      border-color: #9e3b10;
+      color: #fffaf2;
+      box-shadow: 0 2px 0 #7b2c0a;
+    }
+    .button.primary:hover:not(:disabled) {
+      background: #a83f12;
+      box-shadow: 0 3px 0 #7b2c0a;
+    }
+    .button:disabled {
+      background: #e8e6dc;
+      border-color: var(--line);
+      color: var(--muted-light);
+      box-shadow: none;
+    }
+    .button.full { width: 100%; }
+
+    /* Section Bars & Legend */
+    .section-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 0 0 14px;
+    }
+    .section-label {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: bold;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      margin: 0;
+    }
+    .legend {
+      display: flex;
+      gap: 16px;
+      font-size: 11px;
+      font-weight: bold;
+      color: var(--muted);
+      flex-wrap: wrap;
+    }
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 8px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 2px;
+    }
+    .text-green { color: var(--green); }
+    .text-orange { color: var(--orange); }
+    .text-red { color: var(--red); }
+
+    /* Pipeline Cards */
+    .pipeline-list {
+      display: grid;
+      gap: 18px;
+    }
+    .pipeline-card {
+      background: var(--surface);
+      border: 1px solid var(--line-strong);
+      border-radius: 4px;
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+    }
+    .pipeline-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 14px 22px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #ffffff 0%, #f7f5ec 100%);
+    }
+    .project-title {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .project-title h2 {
+      margin: 0;
+      font-size: 19px;
+      font-weight: bold;
+      letter-spacing: -0.5px;
+    }
+    .project-title a:hover {
+      color: var(--orange);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    .project-version {
+      font-size: 12px;
+      font-weight: bold;
+      color: var(--ink-soft);
+      background: var(--paper);
+      border: 1px solid var(--line);
+      padding: 1px 7px;
+      border-radius: 2px;
+    }
+    .project-target {
+      font-size: 11px;
+      color: var(--muted);
+      padding-left: 2px;
+    }
+    .status-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      font-weight: bold;
+      letter-spacing: 0.7px;
+      text-transform: uppercase;
+      white-space: nowrap;
+      padding: 4px 10px;
+      border-radius: 2px;
+      border: 1px solid currentColor;
+    }
+    .status-tag.running {
+      color: var(--orange);
+      background: var(--orange-soft);
+      border-color: #d88b5a;
+    }
+    .status-tag.waiting {
+      color: var(--amber);
+      background: var(--amber-soft);
+      border-color: #d59b52;
+    }
+    .status-tag.failed {
+      color: var(--red);
+      background: var(--red-soft);
+      border-color: #d48379;
+    }
+    .status-tag.done {
+      color: var(--green);
+      background: var(--green-soft);
+      border-color: #8ab098;
+    }
+
+    /* Pipeline Flow Grid */
+    .flow {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 74px minmax(0, 1fr) 74px minmax(0, 1fr) 74px minmax(0, 1fr);
+      align-items: center;
+      padding: 22px 24px 24px;
+      background-color: #f6f4ea;
+      background-image: radial-gradient(#cbcFC2 0.85px, transparent 0.85px);
+      background-size: 14px 14px;
+      background-position: 0 4px;
+    }
+
+    /* ==========================================================================
+       UPGRADED STAGE MODULE CARDS (Replaces plain squares)
+       ========================================================================== */
+    .stage-node {
+      width: 100%;
+      min-width: 0;
+      padding: 0;
+      border: 1.5px solid #9ab3a2;
+      border-radius: 5px;
+      background: var(--surface-raised);
+      text-align: left;
+      color: var(--ink);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      box-shadow: var(--shadow-node);
+      transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+      overflow: visible;
+    }
+
+    /* Left & Right Hardware Connection Ports */
+    .stage-node::before,
+    .stage-node::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      width: 8px;
+      height: 14px;
+      margin-top: -7px;
+      background: var(--surface-raised);
+      border: 1.5px solid currentColor;
+      border-radius: 3px;
+      z-index: 3;
+      transition: background 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+    }
+    .stage-node::before {
+      left: -5px;
+      border-color: inherit;
+    }
+    .stage-node::after {
+      right: -5px;
+      border-color: inherit;
+    }
+    .flow > .stage-node:first-child::before { display: none; }
+    .flow > .stage-node:last-child::after { display: none; }
+
+    .stage-node:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 0 rgba(21, 53, 40, 0.12), 0 10px 18px -10px rgba(21, 53, 40, 0.2);
+    }
+
+    /* Zone 1: Stage Top Header Bar */
+    .stage-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-bottom: 1px solid rgba(25, 51, 39, 0.12);
+      border-radius: 3.5px 3.5px 0 0;
+      font-size: 10px;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .stage-step-id {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .stage-index {
+      display: inline-block;
+      padding: 1px 5px;
+      border-radius: 2px;
+      background: rgba(25, 51, 39, 0.08);
+      font-weight: bold;
+    }
+    .stage-role {
+      opacity: 0.78;
+      font-size: 9.5px;
+      letter-spacing: 0.6px;
+    }
+    .stage-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 6px;
+      border-radius: 2px;
+      font-size: 9.5px;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(25, 51, 39, 0.15);
+    }
+
+    /* Zone 2: Stage Body */
+    .stage-body {
+      padding: 11px 13px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .stage-title-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .stage-name {
+      font-size: 19px;
+      line-height: 1.2;
+      letter-spacing: -0.6px;
+      font-weight: bold;
+    }
+    .stage-time {
+      font-size: 11px;
+      font-weight: bold;
+      opacity: 0.82;
+      white-space: nowrap;
+    }
+    .stage-result {
+      font-size: 12px;
+      font-weight: bold;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Zone 3: Stage Progress Meter & Footer */
+    .stage-footer {
+      padding: 0 13px 11px;
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .stage-meter {
+      height: 6px;
+      width: 100%;
+      background: rgba(25, 51, 39, 0.1);
+      border-radius: 2px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      gap: 2px;
+      padding: 1px;
+    }
+    .stage-meter-fill {
+      height: 100%;
+      border-radius: 1px;
+      background: currentColor;
+      transition: width 300ms ease;
+      position: relative;
+    }
+    .stage-submeta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      opacity: 0.82;
+    }
+
+    /* Stage Tone Variants */
+    /* 1. DONE / PASSED */
+    .stage-node.done {
+      border-color: #7ea38b;
+      background: linear-gradient(180deg, #ffffff 0%, #f2f7f3 100%);
+      color: var(--green);
+    }
+    .stage-node.done .stage-header {
+      background: #e1ede4;
+      border-bottom-color: #bfd3c5;
+    }
+    .stage-node.done .stage-badge {
+      background: #f6fbf7;
+      border-color: #9abaa5;
+      color: var(--green);
+    }
+    .stage-node.done::before,
+    .stage-node.done::after {
+      background: #d8eadc;
+      border-color: var(--green);
+    }
+
+    /* 2. RUNNING / EXECUTING (Animated Loader State) */
+    .stage-node.running {
+      border-color: var(--orange);
+      background: linear-gradient(180deg, #fffdfa 0%, #fdf3e8 100%);
+      color: #9e3c10;
+      box-shadow: 0 0 0 2px rgba(192, 77, 27, 0.16), var(--shadow-node);
+      animation: stage-running-pulse 2.2s ease-in-out infinite;
+    }
+    .stage-node.running .stage-header {
+      background: linear-gradient(90deg, #fbe3cd 0%, #f7d5b5 100%);
+      border-bottom-color: #e4b289;
+      color: #8f340b;
+    }
+    .stage-node.running .stage-badge {
+      background: var(--orange);
+      border-color: #8f340b;
+      color: #fffaf2;
+      box-shadow: 0 0 8px rgba(192, 77, 27, 0.35);
+    }
+    .stage-node.running::before {
+      background: #f9d4b4;
+      border-color: var(--orange);
+    }
+    .stage-node.running::after {
+      background: var(--orange);
+      border-color: #8f340b;
+      box-shadow: 0 0 0 3px rgba(192, 77, 27, 0.25);
+    }
+    .stage-node.running .stage-meter {
+      height: 9px;
+      background: rgba(192, 77, 27, 0.14);
+      border: 1px solid rgba(192, 77, 27, 0.34);
+      border-radius: 3px;
+      padding: 1px;
+    }
+    .stage-node.running .stage-meter-fill {
+      background: repeating-linear-gradient(
+        -45deg,
+        #c04d1b 0px,
+        #c04d1b 6px,
+        #eb6f36 6px,
+        #eb6f36 12px
+      );
+      background-size: 24px 24px;
+      animation: loader-stripes 0.7s linear infinite;
+      box-shadow: 0 0 8px rgba(224, 99, 43, 0.55);
+      border-radius: 1.5px;
+    }
+    .stage-node.running .stage-meter-fill::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 8px;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, #fff8ee);
+      box-shadow: 0 0 6px #ffffff;
+    }
+
+    /* Spinner Icon inside Running Stage & Badges */
+    .spinner-ring {
+      width: 13px;
+      height: 13px;
+      animation: spin-loader 0.9s linear infinite;
+      flex: none;
+    }
+    .spinner-ring circle.track {
+      stroke: currentColor;
+      opacity: 0.25;
+    }
+    .spinner-ring circle.core {
+      fill: currentColor;
+      opacity: 0.85;
+    }
+    .spinner-ring path.arc {
+      stroke: currentColor;
+      stroke-linecap: round;
+    }
+    .stage-node.running .stage-badge .spinner-ring circle.track {
+      stroke: #fffaf2;
+      opacity: 0.32;
+    }
+    .stage-node.running .stage-badge .spinner-ring circle.core {
+      fill: #fffaf2;
+    }
+    .stage-node.running .stage-badge .spinner-ring path.arc {
+      stroke: #fffaf2;
+    }
+
+    /* 3. WAITING / APPROVAL GATE */
+    .stage-node.waiting {
+      border-color: #cf8c46;
+      background: linear-gradient(180deg, #fffefb 0%, #fcf4e7 100%);
+      color: #94510d;
+    }
+    .stage-node.waiting .stage-header {
+      background: #f8e8cc;
+      border-bottom-color: #e2c291;
+    }
+    .stage-node.waiting .stage-badge {
+      background: #fff9ef;
+      border-color: #cf8c46;
+      color: #94510d;
+    }
+    .stage-node.waiting::before,
+    .stage-node.waiting::after {
+      background: #f8e4c2;
+      border-color: #c0782c;
+    }
+    .stage-node.waiting .stage-meter-fill {
+      background: repeating-linear-gradient(
+        -45deg,
+        #cf8c46,
+        #cf8c46 5px,
+        #eec491 5px,
+        #eec491 10px
+      );
+      background-size: 14px 14px;
+      animation: gate-stripes 1.2s linear infinite;
+    }
+
+    /* 4. FAILED */
+    .stage-node.failed {
+      border-color: #c86d63;
+      background: linear-gradient(180deg, #fffdfd 0%, #fcefEd 100%);
+      color: var(--red);
+    }
+    .stage-node.failed .stage-header {
+      background: #f7dcd8;
+      border-bottom-color: #e2b3ac;
+    }
+    .stage-node.failed .stage-badge {
+      background: var(--red);
+      border-color: #8e271c;
+      color: #fff8f6;
+    }
+    .stage-node.failed::before,
+    .stage-node.failed::after {
+      background: #f6d5d0;
+      border-color: var(--red);
+    }
+
+    /* 5. IDLE / LOCKED */
+    .stage-node.idle {
+      color: var(--muted);
+      background: #f2f0e6;
+      border-color: #b8c0b0;
+      border-style: dashed;
+      box-shadow: none;
+    }
+    .stage-node.idle .stage-header {
+      background: #e7e5d8;
+      border-bottom: 1px dashed #c2c8ba;
+    }
+    .stage-node.idle .stage-badge {
+      background: #f2f0e6;
+      border-color: #b8c0b0;
+      color: var(--muted);
+    }
+    .stage-node.idle::before,
+    .stage-node.idle::after {
+      background: #e7e5d8;
+      border-color: #9fa897;
+    }
+
+    /* 6. LIVE (Production Active) */
+    .stage-node.live {
+      color: #f4f2df;
+      background: linear-gradient(180deg, #1d4d38 0%, #153929 100%);
+      border-color: #0f2c1f;
+      box-shadow: 0 3px 0 rgba(15, 44, 31, 0.25);
+    }
+    .stage-node.live .stage-header {
+      background: rgba(0, 0, 0, 0.22);
+      border-bottom-color: rgba(255, 255, 255, 0.14);
+      color: #c8decb;
+    }
+    .stage-node.live .stage-index {
+      background: rgba(255, 255, 255, 0.14);
+      color: #ffffff;
+    }
+    .stage-node.live .stage-badge {
+      background: rgba(66, 201, 131, 0.2);
+      border-color: #54d993;
+      color: #86f7ba;
+    }
+    .stage-node.live .stage-meter {
+      background: rgba(255, 255, 255, 0.16);
+    }
+    .stage-node.live .stage-meter-fill {
+      background: #57de97;
+      box-shadow: 0 0 8px rgba(87, 222, 151, 0.5);
+    }
+    .stage-node.live::before,
+    .stage-node.live::after {
+      background: #2b6a4e;
+      border-color: #57de97;
+    }
+
+    /* ==========================================================================
+       FLUID ANIMATED PROMOTION ARROWS (.transition)
+       ========================================================================== */
+    .transition {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--green);
+      position: relative;
+      border: 0;
+      background: none;
+      padding: 0;
+      margin: 0 -2px;
+      min-width: 0;
+      height: 64px;
+      z-index: 2;
+    }
+    .transition svg {
+      width: 100%;
+      height: 28px;
+      overflow: visible;
+      display: block;
+    }
+
+    /* Conduit Track + Flowing Stream */
+    .pipe-track {
+      stroke: rgba(25, 51, 39, 0.13);
+      stroke-width: 7;
+      stroke-linecap: round;
+    }
+    .pipe-base {
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      opacity: 0.35;
+    }
+    .pipe-stream {
+      stroke: currentColor;
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-dasharray: 8 10;
+      animation: pipe-flow-steady 1.2s linear infinite;
+    }
+    .pipe-head {
+      stroke: currentColor;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+    .pipe-droplet {
+      fill: currentColor;
+      filter: drop-shadow(0 0 3px currentColor);
+      animation: droplet-slide 1.25s cubic-bezier(0.35, 0, 0.25, 1) infinite;
+    }
+    .pipe-droplet.delay-1 {
+      animation-delay: -0.42s;
+    }
+    .pipe-droplet.delay-2 {
+      animation-delay: -0.84s;
+    }
+
+    /* Active Promoting / Next Arrow (Fluid Promotion Animation) */
+    .transition.promoting,
+    .transition.next {
+      color: var(--orange);
+    }
+    .transition.promoting .pipe-track,
+    .transition.next .pipe-track {
+      stroke: rgba(192, 77, 27, 0.22);
+      stroke-width: 8;
+    }
+    .transition.promoting .pipe-base,
+    .transition.next .pipe-base {
+      opacity: 0.4;
+    }
+    .transition.promoting .pipe-stream,
+    .transition.next .pipe-stream {
+      stroke-width: 3.4;
+      stroke-dasharray: 10 8;
+      animation: pipe-flow-fast 0.62s linear infinite;
+    }
+    .transition.promoting .pipe-droplet,
+    .transition.next .pipe-droplet {
+      fill: #ff6e2b;
+      animation: droplet-slide 0.84s linear infinite;
+    }
+    .transition.promoting .pipe-droplet.delay-1,
+    .transition.next .pipe-droplet.delay-1 {
+      animation-delay: -0.28s;
+    }
+    .transition.promoting .pipe-droplet.delay-2,
+    .transition.next .pipe-droplet.delay-2 {
+      animation-delay: -0.56s;
+    }
+    .transition.promoting .pipe-head,
+    .transition.next .pipe-head {
+      animation: arrowhead-pulse 0.84s ease-in-out infinite;
+    }
+
+    button.transition {
+      border-radius: 4px;
+      transition: background 140ms ease, transform 140ms ease;
+    }
+    button.transition:hover {
+      background: rgba(192, 77, 27, 0.1);
+    }
+
+    /* Idle / Blocked Arrow */
+    .transition.idle {
+      color: #8f9b8b;
+    }
+    .transition.idle .pipe-track {
+      stroke: rgba(25, 51, 39, 0.08);
+      stroke-width: 5;
+    }
+    .transition.idle .pipe-base {
+      stroke-dasharray: 4 5;
+      opacity: 0.75;
+    }
+    .transition.idle .pipe-stream,
+    .transition.idle .pipe-droplet {
+      display: none;
+    }
+
+    .edge-label {
+      position: absolute;
+      top: calc(50% + 12px);
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 9px;
+      font-weight: bold;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      padding: 1px 6px;
+      border-radius: 2px;
+      background: var(--orange-soft);
+      border: 1px solid #df9b6f;
+      color: var(--orange);
+      white-space: nowrap;
+      box-shadow: 0 1px 0 rgba(192, 77, 27, 0.12);
+    }
+    .transition.done .edge-label {
+      background: var(--green-soft);
+      border-color: #9abaa5;
+      color: var(--green);
+    }
+    .transition.idle .edge-label {
+      background: #eceae0;
+      border-color: #c2c8ba;
+      color: var(--muted);
+      box-shadow: none;
+    }
+
+    /* ==========================================================================
+       RELEASE SCREEN STATE MACHINE & INSPECTOR
+       ========================================================================== */
+    .release-meta {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 8px;
+      align-items: center;
+    }
+    .meta-tag {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      padding: 2px 8px;
+      border-radius: 2px;
+      font-weight: bold;
+      color: var(--ink-soft);
+    }
+
+    .state-machine {
+      border: 1px solid var(--line-strong);
+      border-radius: 5px;
+      background: var(--surface);
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+    }
+    .machine-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 13px 22px;
+      font-size: 11px;
+      font-weight: bold;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #ffffff 0%, #f6f4eb 100%);
+    }
+    .machine-bar-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .sim-controls {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--paper);
+      padding: 3px;
+      border-radius: 3px;
+      border: 1px solid var(--line);
+    }
+    .sim-btn {
+      border: 0;
+      background: transparent;
+      padding: 3px 8px;
+      border-radius: 2px;
+      font-size: 10.5px;
+      font-weight: bold;
+      color: var(--muted);
+      transition: background 120ms ease, color 120ms ease;
+    }
+    .sim-btn:hover { color: var(--ink); }
+    .sim-btn.active {
+      background: var(--surface-raised);
+      color: var(--orange);
+      box-shadow: 0 1px 2px rgba(21, 53, 40, 0.12);
+    }
+    .machine-bar .selected-hint {
+      color: var(--orange);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .state-machine .flow {
+      padding: 28px 26px 30px;
+      grid-template-columns: minmax(0, 1fr) 86px minmax(0, 1fr) 86px minmax(0, 1fr) 86px minmax(0, 1fr);
+    }
+    .state-machine .stage-node {
+      min-height: 152px;
+    }
+    .state-machine .stage-header {
+      padding: 8px 14px;
+      font-size: 10.5px;
+    }
+    .state-machine .stage-body {
+      padding: 13px 15px 11px;
+      gap: 5px;
+    }
+    .state-machine .stage-name {
+      font-size: 23px;
+    }
+    .state-machine .stage-result {
+      font-size: 12.5px;
+    }
+    .state-machine .stage-footer {
+      padding: 0 15px 13px;
+    }
+    .state-machine .stage-node[aria-pressed="true"] {
+      outline: 2.5px solid var(--ink);
+      outline-offset: 4px;
+    }
+    .state-machine .stage-node.running[aria-pressed="true"] {
+      outline-color: var(--orange);
+    }
+
+    /* Details Grid & Inspector */
+    .release-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 304px;
+      gap: 22px;
+      align-items: start;
+    }
+    .card {
+      border: 1px solid var(--line-strong);
+      border-radius: 4px;
+      background: var(--surface);
+      min-width: 0;
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+    }
+    .tabs {
+      display: flex;
+      gap: 24px;
+      padding: 0 22px;
+      border-bottom: 1px solid var(--line);
+      background: #f8f6ee;
+      overflow-x: auto;
+    }
+    .tab {
+      border: 0;
+      border-bottom: 3px solid transparent;
+      padding: 14px 2px 11px;
+      background: none;
+      font-size: 12.5px;
+      font-weight: bold;
+      color: var(--muted);
+    }
+    .tab:hover { color: var(--ink); }
+    .tab[aria-selected="true"] {
+      color: var(--green);
+      border-bottom-color: var(--green);
+    }
+    .panel-body {
+      padding: 8px 22px 16px;
+    }
+    .evidence-row {
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr) auto auto;
+      gap: 12px;
+      align-items: center;
+      padding: 15px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+    }
+    .evidence-row:last-child { border: 0; }
+    .evidence-row .icon { color: var(--green); }
+    .evidence-row.running-row {
+      background: linear-gradient(90deg, rgba(251, 234, 219, 0.55) 0%, transparent 100%);
+      margin: 0 -22px;
+      padding: 15px 22px;
+      border-left: 3px solid var(--orange);
+    }
+    .evidence-row.running-row .icon { color: var(--orange); }
+    .evidence-meta {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .evidence-result {
+      font-size: 11.5px;
+      font-weight: bold;
+      color: var(--green);
+      background: var(--green-soft);
+      border: 1px solid #9abaa5;
+      padding: 2px 8px;
+      border-radius: 2px;
+    }
+    .evidence-result.running {
+      color: var(--orange);
+      background: var(--orange-soft);
+      border-color: #df9b6f;
+    }
+
+    .panel-caption {
+      color: var(--muted);
+      font-size: 11px;
+      margin: 12px 0 0;
+    }
+    .artifact-row {
+      display: flex;
+      gap: 12px;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .artifact-row:last-child { border: 0; }
+    .artifact-name {
+      font-size: 12.5px;
+      font-weight: bold;
+      overflow-wrap: anywhere;
+    }
+    .artifact-hash {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .artifact-size {
+      font-size: 11px;
+      font-weight: bold;
+      white-space: nowrap;
+      color: var(--ink-soft);
+      background: var(--paper);
+      padding: 3px 8px;
+      border: 1px solid var(--line);
+      border-radius: 2px;
+    }
+    .manifest-code {
+      font-size: 11.5px;
+      line-height: 1.75;
+      color: var(--green);
+      max-height: 360px;
+      overflow: auto;
+      margin: 12px 0 0;
+      padding: 14px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 3px;
+    }
+    .history {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      font-size: 12px;
+    }
+    .history li {
+      padding: 13px 0;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .history li:last-child { border: 0; }
+    .history time {
+      display: inline-block;
+      width: 52px;
+      font-weight: bold;
+      color: var(--muted);
+    }
+
+    /* Terminal Log Drawer */
+    .log {
+      background: var(--sidebar);
+      color: #d6e4ca;
+      margin-top: 16px;
+      border: 1px solid #0e261c;
+      border-radius: 4px;
+      box-shadow: var(--shadow-card);
+    }
+    .log summary {
+      padding: 13px 18px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .log summary::marker { color: #f09c60; }
+    .log summary span {
+      float: right;
+      color: #9ab596;
+      font-weight: normal;
+    }
+    .log-code {
+      padding: 4px 18px 16px;
+      margin: 0;
+      font-size: 11.5px;
+      line-height: 1.85;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      border-top: 1px solid #264a39;
+    }
+    .log-time { color: #8da689; }
+    .log-gate { color: #f5ad76; font-weight: bold; }
+
+    /* Inspector Card */
+    .inspector { padding: 20px 22px; }
+    .inspector .section-label { margin-bottom: 10px; }
+    .inspector-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+    .inspector h2 {
+      font-size: 24px;
+      letter-spacing: -0.5px;
+      margin: 0;
+    }
+    .inspector-state {
+      font-size: 10.5px;
+      font-weight: bold;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 2px;
+      border: 1px solid currentColor;
+      color: var(--orange);
+      background: var(--orange-soft);
+    }
+    .inspector-state.done {
+      color: var(--green);
+      background: var(--green-soft);
+    }
+    .inspector-state.idle {
+      color: var(--muted);
+      background: var(--paper);
+    }
+    .inspector dl {
+      margin: 16px 0 20px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      font-size: 12px;
+    }
+    .inspector dt { color: var(--muted); }
+    .inspector dd {
+      text-align: right;
+      margin: 0;
+      font-weight: bold;
+    }
+    .inspector-note {
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+      margin: 12px 0 0;
+    }
+    .receipt {
+      margin: 16px 0 0;
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+      padding: 13px 16px;
+      font-size: 11px;
+      color: var(--muted);
+      border-radius: 4px;
+      box-shadow: var(--shadow-card);
+    }
+    .receipt summary {
+      cursor: pointer;
+      color: var(--green);
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .receipt dl {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 9px;
+      margin: 12px 0 0;
+    }
+    .receipt dd {
+      margin: 0;
+      text-align: right;
+      font-weight: bold;
+      color: var(--ink);
+      overflow-wrap: anywhere;
+    }
+
+    /* Activity & Footer */
+    .activity {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 22px;
+      align-items: center;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 4px;
+      margin-top: 22px;
+      padding: 14px 20px;
+    }
+    .activity h2 {
+      font-size: 11px;
+      font-weight: bold;
+      letter-spacing: 1.2px;
+      color: var(--muted);
+      margin: 0;
+    }
+    .activity-events {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .activity time {
+      color: var(--muted);
+      margin-right: 7px;
+      font-weight: normal;
+    }
+    .workspace-foot {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 11px;
+      margin-top: 20px;
+    }
+
+    /* Dialog & Toast */
+    dialog {
+      width: min(500px, calc(100vw - 32px));
+      max-height: calc(100vh - 40px);
+      border: 2px solid var(--green);
+      border-radius: 4px;
+      padding: 0;
+      color: var(--ink);
+      background: var(--surface);
+      box-shadow: 8px 8px 0 rgba(21, 53, 40, 0.28);
+    }
+    dialog::backdrop { background: rgba(21, 53, 40, 0.55); }
+    .dialog-head {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: var(--paper);
+    }
+    .dialog-head h2 { font-size: 16px; margin: 0; }
+    .close-button {
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border: 1px solid var(--line-strong);
+      border-radius: 2px;
+      background: var(--surface);
+    }
+    .dialog-content { padding: 20px; }
+    .dialog-content p {
+      font-size: 12.5px;
+      margin: 0 0 14px;
+      line-height: 1.75;
+    }
+    .dialog-content pre {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font-size: 11.5px;
+      padding: 12px;
+      background: var(--green-soft);
+      border: 1px solid #9abaa5;
+      border-radius: 3px;
+    }
+    .notice {
+      color: var(--orange);
+      background: var(--orange-soft);
+      border-left: 3px solid var(--orange);
+      padding: 10px 12px;
+      font-size: 11.5px;
+      font-weight: bold;
+    }
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--sidebar);
+      color: #faf5e5;
+      padding: 13px 22px;
+      border: 1px solid #688064;
+      border-radius: 3px;
+      box-shadow: 4px 4px 0 rgba(25, 57, 44, 0.25);
+      font-size: 12.5px;
+      font-weight: bold;
+      z-index: 5;
+      width: max-content;
+      max-width: calc(100vw - 32px);
+    }
+
+    /* Keyframe Animations */
+    @keyframes spin-loader {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes loader-stripes {
+      0% { background-position: 0 0; }
+      100% { background-position: 24px 0; }
+    }
+    @keyframes stage-running-pulse {
+      0%, 100% { box-shadow: 0 0 0 2px rgba(192, 77, 27, 0.16), 0 2px 0 rgba(192, 77, 27, 0.14); }
+      50% { box-shadow: 0 0 0 4px rgba(192, 77, 27, 0.28), 0 4px 14px -2px rgba(192, 77, 27, 0.28); }
+    }
+    @keyframes gate-stripes {
+      0% { background-position: 0 0; }
+      100% { background-position: 14px 0; }
+    }
+    @keyframes pipe-flow-steady {
+      from { stroke-dashoffset: 36; }
+      to { stroke-dashoffset: 0; }
+    }
+    @keyframes pipe-flow-fast {
+      from { stroke-dashoffset: 36; }
+      to { stroke-dashoffset: 0; }
+    }
+    @keyframes droplet-slide {
+      0% { transform: translateX(0px); opacity: 0; }
+      12% { opacity: 1; }
+      88% { opacity: 1; }
+      100% { transform: translateX(52px); opacity: 0; }
+    }
+    @keyframes arrowhead-pulse {
+      0%, 100% { transform: translateX(0); filter: drop-shadow(0 0 0px rgba(224, 99, 43, 0)); }
+      50% { transform: translateX(1.5px); filter: drop-shadow(0 0 4px rgba(224, 99, 43, 0.65)); }
+    }
+    @keyframes cursor-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.25; }
+    }
+
+    /* Responsive Adjustments */
+    @media (max-width: 1150px) {
+      .shell { grid-template-columns: 156px minmax(0, 1fr); }
+      .content, .topbar { padding-left: 24px; padding-right: 24px; }
+      .flow, .state-machine .flow {
+        grid-template-columns: minmax(0, 1fr) 56px minmax(0, 1fr) 56px minmax(0, 1fr) 56px minmax(0, 1fr);
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+      .release-grid { grid-template-columns: minmax(0, 1fr) 260px; gap: 18px; }
+    }
+    @media (max-width: 920px) {
+      .shell { grid-template-columns: 64px minmax(0, 1fr); }
+      .sidebar { align-items: center; padding: 24px 8px; }
+      .brand-word, .sidebar-label, .nav-label, .sidebar-footer { display: none; }
+      .nav { margin-top: 32px; }
+      .nav-link { padding: 10px; justify-content: center; }
+      .release-grid { grid-template-columns: minmax(0, 1fr); }
+      .release-aside { order: -1; }
+    }
+    @media (max-width: 720px) {
+      .flow, .state-machine .flow {
+        grid-template-columns: minmax(0, 1fr);
+        padding: 18px;
+      }
+      .stage-node::before, .stage-node::after { display: none; }
+      .transition, .state-machine .transition {
+        height: 44px;
+        min-height: 44px;
+        flex-direction: row;
+      }
+      .transition svg {
+        width: 44px;
+        height: 24px;
+        transform: rotate(90deg);
+      }
+      .edge-label { margin-top: 0; margin-left: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" aria-hidden="true" style="position:absolute">
+    <defs>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4.5 4.5L19 7"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="1"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></symbol>
+      <symbol id="i-gate" viewBox="0 0 24 24"><path d="M12 4v10M12 18.5v1.5"/></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M3 12h17m-6-6 6 6-6 6"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="m7 4 12 8-12 8V4Z"/></symbol>
+      <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></symbol>
+    </defs>
+  </svg>
+
+  <div class="shell">
+    <aside class="sidebar" aria-label="Workspace navigation">
+      <a class="brand" href="#overview" aria-label="Pipes overview">p<span class="brand-word">ipes</span><span>_</span></a>
+      <p class="sidebar-label">LOCAL / CI</p>
+      <nav class="nav" aria-label="Primary">
+        <a class="nav-link active" href="#overview" data-nav="overview" aria-label="Pipelines">
+          <span class="index">01</span><span class="nav-label">pipelines</span>
+        </a>
+        <a class="nav-link" href="#release" data-nav="release" aria-label="Releases">
+          <span class="index">02</span><span class="nav-label">releases</span>
+        </a>
+        <button class="nav-link" data-action="manifest" aria-label="Manifest">
+          <span class="index">03</span><span class="nav-label">manifest</span>
+        </button>
+        <button class="nav-link" data-action="storage" aria-label="Storage">
+          <span class="index">04</span><span class="nav-label">storage</span>
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="status-online"><span class="dot pulse"></span>daemon online</div>
+        <div class="host">macOS / arm64<br>concept 03 · animated</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="breadcrumb">workspace / <strong id="breadcrumb-current">pipelines</strong></div>
+        <div class="topbar-right">
+          <span class="demo">CONCEPT v3</span>
+          <nav class="screen-switch" aria-label="Concept screens">
+            <a href="#overview" data-screen="overview" class="active">01 / overview</a>
+            <a href="#release" data-screen="release">02 / release</a>
+          </nav>
+        </div>
+      </header>
+
+      <!-- SCREEN 01: OVERVIEW -->
+      <section class="content" id="overview-screen" aria-labelledby="overview-title">
+        <div class="page-heading">
+          <div>
+            <h1 id="overview-title" tabindex="-1">pipelines<span class="text-orange">_</span></h1>
+            <div class="subline">
+              <span class="subline-chip">3 registered apps</span>
+              <span class="subline-chip running">1 executing &amp; promoting</span>
+              <span class="subline-chip">1 failed check</span>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="button" data-action="register">
+              <svg class="icon small" aria-hidden="true"><use href="#i-plus"/></svg>manifest
+            </button>
+            <button class="button primary" data-action="run">
+              <svg class="icon small" aria-hidden="true"><use href="#i-play"/></svg>run pipeline
+            </button>
+          </div>
+        </div>
+
+        <div class="section-bar">
+          <h2 class="section-label">Active Release Paths</h2>
+          <div class="legend">
+            <span class="text-green"><svg class="icon small" aria-hidden="true"><use href="#i-check"/></svg>passed</span>
+            <span class="text-orange">
+              <svg class="spinner-ring" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <circle class="track" cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/>
+                <circle class="core" cx="8" cy="8" r="1.8"/>
+                <path class="arc" d="M8 2a6 6 0 0 1 5.6 3.8" stroke="currentColor" stroke-width="2.2"/>
+              </svg>
+              executing / promoting
+            </span>
+            <span style="color: var(--amber)"><svg class="icon small" aria-hidden="true"><use href="#i-gate"/></svg>gate</span>
+            <span class="text-red"><svg class="icon small" aria-hidden="true"><use href="#i-x"/></svg>failed</span>
+          </div>
+        </div>
+
+        <div class="pipeline-list" id="pipeline-list"></div>
+
+        <section class="activity" aria-labelledby="activity-title">
+          <h2 id="activity-title">TELEMETRY</h2>
+          <div class="activity-events">
+            <span class="text-orange"><time>12:19</time>atlas / beta → gamma promoting (smoke 3/4)</span>
+            <span class="text-red"><time>12:15</time>beacon / test failed (2 assertions)</span>
+            <span class="text-green"><time>11:42</time>relay / prod v0.9.3 verified live</span>
+          </div>
+        </section>
+
+        <footer class="workspace-foot">
+          <span>42 releases stored / 7.8 GB local cache</span>
+          <span>Interactive concept render · click any stage or promote arrow</span>
+        </footer>
+      </section>
+
+      <!-- SCREEN 02: RELEASE DETAIL -->
+      <section class="content" id="release-screen" aria-labelledby="release-title" hidden>
+        <div class="page-heading">
+          <div>
+            <h1 id="release-title" tabindex="-1">atlas / v1.5.0</h1>
+            <div class="release-meta">
+              <span class="meta-tag">commit 8f1c2a9</span>
+              <span class="meta-tag">macOS / arm64</span>
+              <span>started 18m ago · run #183</span>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="button" data-action="fetch">fetch artifact</button>
+            <button class="button primary" data-action="simulate-promote">
+              promote stage<svg class="icon small" aria-hidden="true"><use href="#i-arrow"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <section class="state-machine" aria-label="Atlas promotion state machine">
+          <div class="machine-bar">
+            <div class="machine-bar-left">
+              <span>PIPELINE STATE MACHINE / v1.5.0</span>
+              <div class="sim-controls" role="group" aria-label="Stage state preset">
+                <button type="button" class="sim-btn active" data-preset="executing">01 executing + promoting</button>
+                <button type="button" class="sim-btn" data-preset="gate">02 approval gate</button>
+                <button type="button" class="sim-btn" data-preset="promoted">03 prod promoting</button>
+              </div>
+            </div>
+            <span class="selected-hint">
+              <span class="dot" style="background: var(--orange)"></span>click stage to inspect · click arrow to promote
+            </span>
+          </div>
+          <div id="release-flow"></div>
+        </section>
+
+        <div class="release-grid">
+          <div>
+            <section class="card" aria-label="Release details">
+              <div class="tabs" role="tablist" aria-label="Release details">
+                <button class="tab" id="tab-evidence" role="tab" aria-selected="true" aria-controls="panel-evidence" tabindex="0" data-tab="evidence">checks (4)</button>
+                <button class="tab" id="tab-artifacts" role="tab" aria-selected="false" aria-controls="panel-artifacts" tabindex="-1" data-tab="artifacts">artifacts (2)</button>
+                <button class="tab" id="tab-manifest" role="tab" aria-selected="false" aria-controls="panel-manifest" tabindex="-1" data-tab="manifest">manifest</button>
+                <button class="tab" id="tab-history" role="tab" aria-selected="false" aria-controls="panel-history" tabindex="-1" data-tab="history">history</button>
+              </div>
+
+              <div id="panel-evidence" class="panel-body" role="tabpanel" aria-labelledby="tab-evidence">
+                <div class="evidence-row">
+                  <svg class="icon small" aria-hidden="true"><use href="#i-check"/></svg>
+                  <span><strong>build</strong> · xcodebuild Release arm64</span>
+                  <span class="evidence-meta">1m 12s</span>
+                  <span class="evidence-result">pass</span>
+                </div>
+                <div class="evidence-row">
+                  <svg class="icon small" aria-hidden="true"><use href="#i-check"/></svg>
+                  <span><strong>unit + UI</strong> · 20 test suites</span>
+                  <span class="evidence-meta">2m 14s</span>
+                  <span class="evidence-result">20/20</span>
+                </div>
+                <div class="evidence-row">
+                  <svg class="icon small" aria-hidden="true"><use href="#i-check"/></svg>
+                  <span><strong>signature</strong> · Developer ID strict verify</span>
+                  <span class="evidence-meta">0m 04s</span>
+                  <span class="evidence-result">valid</span>
+                </div>
+                <div class="evidence-row running-row" id="smoke-evidence-row">
+                  <svg class="spinner-ring" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <circle class="track" cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/>
+                    <circle class="core" cx="8" cy="8" r="1.8"/>
+                    <path class="arc" d="M8 2a6 6 0 0 1 5.6 3.8" stroke="currentColor" stroke-width="2.2"/>
+                  </svg>
+                  <span><strong>beta smoke + canary</strong> · executing step 3/4</span>
+                  <span class="evidence-meta" id="smoke-timer">0m 48s</span>
+                  <span class="evidence-result running" id="smoke-status">running 74%</span>
+                </div>
+              </div>
+
+              <div id="panel-artifacts" class="panel-body" role="tabpanel" aria-labelledby="tab-artifacts" hidden>
+                <div class="artifact-row">
+                  <div>
+                    <div class="artifact-name">Atlas-1.5.0-macos-arm64.zip</div>
+                    <div class="artifact-hash">sha256:88ab…e43c · signed &amp; notarized</div>
+                  </div>
+                  <span class="artifact-size">28.4 MB</span>
+                </div>
+                <div class="artifact-row">
+                  <div>
+                    <div class="artifact-name">test-results.xcresult.zip</div>
+                    <div class="artifact-hash">sha256:04ec…ab21 · verification evidence</div>
+                  </div>
+                  <span class="artifact-size">6.2 MB</span>
+                </div>
+              </div>
+
+              <div id="panel-manifest" class="panel-body" role="tabpanel" aria-labelledby="tab-manifest" hidden>
+                <p class="panel-caption">Declarative pipeline manifest (`pipes.yaml`).</p>
+                <pre class="manifest-code" id="manifest-source">api: pipes/v1
+app: atlas
+source:
+  path: ../atlas
+  snapshot: git-commit
+  require_clean: true
+version:
+  scheme: semver
+  from: VERSION
+execution:
+  host: { os: macos, arch: arm64 }
+  timeout: 20m
+stages:
+  - id: test
+    checks:
+      - id: unit-and-ui
+        exec: [./ci/test.sh, "${artifact:app}"]
+  - id: beta
+    checks:
+      - id: acceptance
+        exec: [./ci/smoke.sh, "${artifact:app}"]
+    require: [previous.passed, checks.passed]
+  - id: gamma
+    require: [previous.passed, approval.local]
+  - id: prod
+    require: [previous.passed, approval.local]</pre>
+              </div>
+
+              <div id="panel-history" class="panel-body" role="tabpanel" aria-labelledby="tab-history" hidden>
+                <ol class="history">
+                  <li><time>12:02</time>source + manifest captured (8f1c2a9)</li>
+                  <li><time>12:12</time>signed + sealed artifact bundle</li>
+                  <li><time>12:14</time>stage 01 / test passed (20/20 checks)</li>
+                  <li class="text-orange"><time>12:18</time>stage 02 / beta promoting → stage 03 / gamma</li>
+                </ol>
+              </div>
+            </section>
+
+            <details class="log" open>
+              <summary>run #183 · live execution stream<span>tail -f</span></summary>
+              <pre class="log-code"><span class="log-time">12:14:22</span> [01/test]  unit + UI ............ 20/20 passed (2m 14s)
+<span class="log-time">12:16:09</span> [02/beta]  smoke suite .......... 4/4 passed   (1m 08s)
+<span class="log-time">12:18:05</span> [promote]  beta -> gamma ........ <span class="log-gate">fluid promotion stream active</span>
+<span class="log-time">12:18:41</span> [03/gamma] canary verification .. <span class="log-gate">executing check 3/4 (75%)</span></pre>
+            </details>
+          </div>
+
+          <aside class="release-aside" aria-label="Selected stage">
+            <section class="card inspector" aria-labelledby="inspector-title">
+              <p class="section-label" id="inspector-index">03 / SELECTED STAGE</p>
+              <div class="inspector-title">
+                <h2 id="inspector-title">gamma</h2>
+                <span class="inspector-state" id="inspector-state">executing</span>
+              </div>
+              <dl id="inspector-fields"></dl>
+              <button class="button primary full" id="inspector-action" data-action="simulate-promote">
+                promote to prod<svg class="icon small" aria-hidden="true"><use href="#i-arrow"/></svg>
+              </button>
+              <p class="inspector-note" id="inspector-note">prod currently serving v1.4.2</p>
+            </section>
+
+            <details class="receipt" open>
+              <summary>cryptographic receipt</summary>
+              <dl>
+                <dt>source</dt><dd>8f1c2a9</dd>
+                <dt>manifest</dt><dd>6e4a…b821</dd>
+                <dt>artifact</dt><dd>88ab…e43c</dd>
+                <dt>signed</dt><dd>Developer ID</dd>
+              </dl>
+            </details>
+          </aside>
+        </div>
+
+        <footer class="workspace-foot">
+          <span>sha256:88ab…e43c · verified local store</span>
+          <span>Concept 03 · Stage cards + executing loader + fluid promotion arrows</span>
+        </footer>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="preview-dialog" aria-labelledby="dialog-title">
+    <div class="dialog-head">
+      <h2 id="dialog-title">preview</h2>
+      <button class="close-button" data-action="close" aria-label="Close dialog">
+        <svg class="icon small" aria-hidden="true"><use href="#i-x"/></svg>
+      </button>
+    </div>
+    <div class="dialog-content" id="dialog-content"></div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script>
+    const stageNames = ["test", "beta", "gamma", "prod"];
+    const stageRoles = ["verify", "soak", "canary", "release"];
+
+    const releasePresets = {
+      executing: {
+        status: "promoting → gamma",
+        tone: "running",
+        selected: "gamma",
+        stages: [
+          {
+            tone: "done",
+            badge: "PASSED",
+            result: "20/20 checks",
+            time: "2m 14s",
+            progress: 100,
+            subleft: "xcresult verified",
+            subright: "100%"
+          },
+          {
+            tone: "done",
+            badge: "PASSED",
+            result: "4/4 smoke pass",
+            time: "1m 08s",
+            progress: 100,
+            subleft: "signed bundle",
+            subright: "100%"
+          },
+          {
+            tone: "running",
+            badge: "RUNNING",
+            result: "canary 3/4 checks",
+            time: "0m 48s",
+            progress: 74,
+            subleft: "step 3: telemetry",
+            subright: "74%"
+          },
+          {
+            tone: "idle",
+            badge: "LOCKED",
+            result: "live v1.4.2",
+            time: "retained",
+            progress: 0,
+            subleft: "awaiting gamma",
+            subright: "gate"
+          }
+        ],
+        edges: [
+          { state: "done", label: "promoted" },
+          { state: "promoting", label: "promoting", actionable: true },
+          { state: "idle", label: "locked" }
+        ]
+      },
+      gate: {
+        status: "approval gate",
+        tone: "waiting",
+        selected: "gamma",
+        stages: [
+          {
+            tone: "done",
+            badge: "PASSED",
+            result: "20/20 checks",
+            time: "2m 14s",
+            progress: 100,
+            subleft: "xcresult verified",
+            subright: "100%"
+          },
+          {
+            tone: "done",
+            badge: "PASSED",
+            result: "4/4 smoke pass",
+            time: "1m 08s",
+            progress: 100,
+            subleft: "signed bundle",
+            subright: "100%"
+          },
+          {
+            tone: "waiting",
+            badge: "GATE",
+            result: "awaiting approval",
+            time: "ready",
+            progress: 100,
+            subleft: "24/24 checks ok",
+            subright: "approve →"
+          },
+          {
+            tone: "idle",
+            badge: "LOCKED",
+            result: "live v1.4.2",
+            time: "retained",
+            progress: 0,
+            subleft: "awaiting gamma",
+            subright: "gate"
+          }
+        ],
+        edges: [
+          { state: "done", label: "promoted" },
+          { state: "next", label: "promote", actionable: true },
+          { state: "idle", label: "locked" }
+        ]
+      },
+      promoted: {
+        status: "promoting → prod",
+        tone: "running",
+        selected: "prod",
+        stages: [
+          {
+            tone: "done",
+            badge: "PASSED",
+            result: "20/20 checks",
+            time: "2m 14s",
+            progress: 100,
+            subleft: "xcresult verified",
+            subright: "100%"
+          },
+          {
+            tone: "done",
+            badge: "PASSED",
+            result: "4/4 smoke pass",
+            time: "1m 08s",
+            progress: 100,
+            subleft: "signed bundle",
+            subright: "100%"
+          },
+          {
+            tone: "done",
+            badge: "APPROVED",
+            result: "canary verified",
+            time: "1m 19s",
+            progress: 100,
+            subleft: "approved local",
+            subright: "100%"
+          },
+          {
+            tone: "running",
+            badge: "DEPLOYING",
+            result: "promoting v1.5.0",
+            time: "0m 19s",
+            progress: 62,
+            subleft: "swapping symlink",
+            subright: "62%"
+          }
+        ],
+        edges: [
+          { state: "done", label: "promoted" },
+          { state: "done", label: "approved" },
+          { state: "promoting", label: "promoting", actionable: true }
+        ]
+      }
+    };
+
+    let currentPresetKey = "executing";
+
+    const overviewProjects = [
+      {
+        id: "atlas",
+        version: "1.5.0",
+        target: "macOS/arm64",
+        get status() { return releasePresets[currentPresetKey].status; },
+        get tone() { return releasePresets[currentPresetKey].tone; },
+        get stages() { return releasePresets[currentPresetKey].stages; },
+        get edges() { return releasePresets[currentPresetKey].edges; }
+      },
+      {
+        id: "beacon",
+        version: "2.8.1",
+        target: "python · worker",
+        status: "stopped at test",
+        tone: "failed",
+        stages: [
+          {
+            tone: "failed",
+            badge: "FAILED",
+            result: "2/12 failed",
+            time: "0m 52s",
+            progress: 82,
+            subleft: "exit code 1",
+            subright: "10/12"
+          },
+          {
+            tone: "idle",
+            badge: "BLOCKED",
+            result: "blocked by test",
+            time: "—",
+            progress: 0,
+            subleft: "upstream failed",
+            subright: "locked"
+          },
+          {
+            tone: "idle",
+            badge: "BLOCKED",
+            result: "blocked by test",
+            time: "—",
+            progress: 0,
+            subleft: "upstream failed",
+            subright: "locked"
+          },
+          {
+            tone: "idle",
+            badge: "RETAINED",
+            result: "live v2.7.4",
+            time: "3d ago",
+            progress: 0,
+            subleft: "prod untouched",
+            subright: "v2.7.4"
+          }
+        ],
+        edges: [
+          { state: "idle", label: "halted" },
+          { state: "idle" },
+          { state: "idle" }
+        ]
+      },
+      {
+        id: "relay",
+        version: "0.9.3",
+        target: "rust · cli",
+        status: "v0.9.3 live",
+        tone: "done",
+        stages: [
+          {
+            tone: "done",
+            badge: "PASSED",
+            result: "48/48 passed",
+            time: "1m 05s",
+            progress: 100,
+            subleft: "cargo test",
+            subright: "100%"
+          },
+          {
+            tone: "done",
+            badge: "PASSED",
+            result: "smoke verified",
+            time: "0m 38s",
+            progress: 100,
+            subleft: "binary signed",
+            subright: "100%"
+          },
+          {
+            tone: "done",
+            badge: "PASSED",
+            result: "soak 100%",
+            time: "4m 10s",
+            progress: 100,
+            subleft: "0 regressions",
+            subright: "100%"
+          },
+          {
+            tone: "live",
+            badge: "LIVE",
+            result: "v0.9.3 active",
+            time: "11:42",
+            progress: 100,
+            subleft: "promoted clean",
+            subright: "healthy"
+          }
+        ],
+        edges: [
+          { state: "done", label: "promoted" },
+          { state: "done", label: "promoted" },
+          { state: "done", label: "live" }
+        ]
+      }
+    ];
+
+    const stageDetails = {
+      test: {
+        state: "passed",
+        tone: "done",
+        fields: [["checks", "20/20 passed"], ["duration", "2m 14s"], ["report", "xcresult"], ["artifact", "verified"]],
+        action: "artifacts",
+        label: "view test report",
+        note: "run #183 · 0 flakes"
+      },
+      beta: {
+        state: "passed",
+        tone: "done",
+        fields: [["smoke", "4/4 passed"], ["signature", "Developer ID"], ["duration", "1m 08s"], ["promotion", "flowing → gamma"]],
+        action: "artifacts",
+        label: "inspect bundle",
+        note: "v1.5.0 promoted to gamma"
+      },
+      gamma: {
+        state: "executing (74%)",
+        tone: "running",
+        fields: [["canary checks", "3/4 running"], ["active step", "telemetry verify"], ["elapsed", "0m 48s"], ["from stage", "beta (promoted)"]],
+        action: "simulate-promote",
+        label: "complete & promote",
+        note: "fluid promotion active from beta"
+      },
+      prod: {
+        state: "locked",
+        tone: "idle",
+        fields: [["current live", "v1.4.2"], ["candidate", "v1.5.0"], ["prerequisite", "gamma pass"], ["protection", "stage head"]],
+        action: "simulate-promote",
+        label: "awaiting gamma",
+        note: "v1.4.2 retained safely"
+      }
+    };
+
+    const dialog = document.getElementById("preview-dialog");
+    const toast = document.getElementById("toast");
+    let toastTimer;
+
+    function icon(name, className = "icon small") {
+      return `<svg class="${className}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+    }
+
+    function spinnerSvg() {
+      return `<svg class="spinner-ring" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <circle class="track" cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/>
+        <circle class="core" cx="8" cy="8" r="1.8"/>
+        <path class="arc" d="M8 2a6 6 0 0 1 5.6 3.8" stroke="currentColor" stroke-width="2.2"/>
+      </svg>`;
+    }
+
+    function stageStatusIcon(tone) {
+      if (tone === "running") return spinnerSvg();
+      if (tone === "failed") return icon("x");
+      if (tone === "waiting") return icon("gate");
+      if (tone === "idle") return icon("lock");
+      return icon("check");
+    }
+
+    function createTransitionArrow(edgeInfo, project, index) {
+      const actionable = Boolean(edgeInfo.actionable);
+      const edge = document.createElement(actionable ? "button" : "span");
+      edge.className = `transition ${edgeInfo.state}`;
+      if (actionable) {
+        edge.type = "button";
+        edge.dataset.action = "simulate-promote";
+        edge.setAttribute("aria-label", `Promote ${project.id} from ${stageNames[index]} to ${stageNames[index + 1]}`);
+      } else {
+        edge.setAttribute("aria-hidden", "true");
+      }
+
+      edge.innerHTML = `
+        <svg viewBox="0 0 74 28" fill="none" aria-hidden="true">
+          <path class="pipe-track" d="M2 14H66"/>
+          <path class="pipe-base" d="M2 14H64"/>
+          <path class="pipe-stream" d="M2 14H64"/>
+          <circle class="pipe-droplet" cx="6" cy="14" r="2.8"/>
+          <circle class="pipe-droplet delay-1" cx="6" cy="14" r="2.4"/>
+          <circle class="pipe-droplet delay-2" cx="6" cy="14" r="2.0"/>
+          <path class="pipe-head" d="m58 7 8 7-8 7"/>
+        </svg>
+        ${edgeInfo.label ? `<span class="edge-label">${edgeInfo.label}</span>` : ""}
+      `;
+      return edge;
+    }
+
+    function createFlow(project, detailed = false) {
+      const flow = document.createElement("div");
+      flow.className = "flow";
+      flow.setAttribute("role", "group");
+      flow.setAttribute("aria-label", `${project.id} v${project.version} promotion path`);
+
+      project.stages.forEach((stage, index) => {
+        const stageName = stageNames[index];
+        const roleName = stageRoles[index];
+        const node = document.createElement("button");
+        node.type = "button";
+        node.className = `stage-node ${stage.tone}`;
+        node.dataset.project = project.id;
+        node.dataset.stage = stageName;
+        node.setAttribute("aria-label", `${project.id}: ${stageName}, ${stage.badge}, ${stage.result}`);
+        if (detailed) {
+          const selectedStage = releasePresets[currentPresetKey].selected;
+          node.setAttribute("aria-pressed", String(stageName === selectedStage));
+        }
+
+        node.innerHTML = `
+          <div class="stage-header">
+            <span class="stage-step-id">
+              <span class="stage-index">${String(index + 1).padStart(2, "0")}</span>
+              <span class="stage-role">${roleName}</span>
+            </span>
+            <span class="stage-badge">${stageStatusIcon(stage.tone)}<span>${stage.badge}</span></span>
+          </div>
+          <div class="stage-body">
+            <div class="stage-title-row">
+              <span class="stage-name">${stageName}</span>
+              <span class="stage-time">${stage.time}</span>
+            </div>
+            <span class="stage-result">${stage.result}</span>
+          </div>
+          <div class="stage-footer">
+            <div class="stage-meter" aria-hidden="true">
+              <div class="stage-meter-fill" style="width: ${stage.progress}%"></div>
+            </div>
+            <div class="stage-submeta">
+              <span>${stage.subleft}</span>
+              <span>${stage.subright}</span>
+            </div>
+          </div>
+        `;
+        flow.append(node);
+
+        if (index === project.stages.length - 1) return;
+        const edgeInfo = project.edges[index] || { state: "idle" };
+        flow.append(createTransitionArrow(edgeInfo, project, index));
+      });
+
+      return flow;
+    }
+
+    function renderAllFlows() {
+      const listEl = document.getElementById("pipeline-list");
+      listEl.replaceChildren();
+      overviewProjects.forEach(project => {
+        const card = document.createElement("section");
+        card.className = "pipeline-card";
+        card.setAttribute("aria-label", `${project.id} pipeline`);
+        const name = project.id === "atlas" ? '<a href="#release">atlas</a>' : project.id;
+        card.innerHTML = `
+          <header class="pipeline-heading">
+            <div class="project-title">
+              <h2>${name}</h2>
+              <span class="project-version">v${project.version}</span>
+              <span class="project-target">${project.target}</span>
+            </div>
+            <span class="status-tag ${project.tone}">
+              ${project.tone === "running" ? spinnerSvg() : '<span class="dot"></span>'}
+              ${project.status}
+            </span>
+          </header>
+        `;
+        card.append(createFlow(project, false));
+        listEl.append(card);
+      });
+
+      const releaseFlowEl = document.getElementById("release-flow");
+      releaseFlowEl.replaceChildren(createFlow(overviewProjects[0], true));
+      selectStage(releasePresets[currentPresetKey].selected);
+    }
+
+    function setPreset(presetKey) {
+      if (!releasePresets[presetKey]) return;
+      currentPresetKey = presetKey;
+      document.querySelectorAll("[data-preset]").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.preset === presetKey);
+      });
+      renderAllFlows();
+    }
+
+    function showScreen(focusHeading = false) {
+      const screen = location.hash === "#release" ? "release" : "overview";
+      document.getElementById("overview-screen").hidden = screen !== "overview";
+      document.getElementById("release-screen").hidden = screen !== "release";
+      document.getElementById("breadcrumb-current").textContent = screen === "release" ? "atlas / v1.5.0" : "pipelines";
+      document.querySelectorAll("[data-nav], [data-screen]").forEach(link => {
+        const active = (link.dataset.nav || link.dataset.screen) === screen;
+        link.classList.toggle("active", active);
+        if (active) link.setAttribute("aria-current", "page");
+        else link.removeAttribute("aria-current");
+      });
+      document.title = screen === "release" ? "pipes / atlas v1.5.0 / concept" : "pipes / pipelines / concept";
+      if (focusHeading) document.getElementById(screen + "-title").focus({ preventScroll: true });
+      window.scrollTo(0, 0);
+    }
+
+    function navigateTo(screen) {
+      if (location.hash !== "#" + screen) history.pushState(null, "", "#" + screen);
+      showScreen();
+    }
+
+    function selectTab(name, focus = false) {
+      document.querySelectorAll("[data-tab]").forEach(tab => {
+        const selected = tab.dataset.tab === name;
+        tab.setAttribute("aria-selected", String(selected));
+        tab.tabIndex = selected ? 0 : -1;
+        document.getElementById("panel-" + tab.dataset.tab).hidden = !selected;
+        if (selected && focus) tab.focus();
+      });
+    }
+
+    function selectStage(name) {
+      const details = stageDetails[name];
+      document.querySelectorAll("#release-flow [data-stage]").forEach(node => {
+        node.setAttribute("aria-pressed", String(node.dataset.stage === name));
+      });
+      document.getElementById("inspector-index").textContent = `${String(stageNames.indexOf(name) + 1).padStart(2, "0")} / SELECTED STAGE`;
+      document.getElementById("inspector-title").textContent = name;
+      const state = document.getElementById("inspector-state");
+      state.textContent = details.state;
+      state.className = "inspector-state " + (details.tone === "done" ? "done" : details.tone === "idle" ? "idle" : "");
+      const fields = document.getElementById("inspector-fields");
+      fields.replaceChildren();
+      details.fields.forEach(([label, value]) => {
+        const term = document.createElement("dt");
+        term.textContent = label;
+        const description = document.createElement("dd");
+        description.textContent = value;
+        if (value.includes("running") || value.includes("flowing")) description.className = "text-orange";
+        fields.append(term, description);
+      });
+      const action = document.getElementById("inspector-action");
+      action.dataset.action = details.action;
+      action.disabled = name === "prod" && currentPresetKey !== "promoted";
+      action.innerHTML = details.label + (action.disabled ? icon("lock") : icon("arrow"));
+      document.getElementById("inspector-note").textContent = details.note;
+    }
+
+    function openDialog(title, html) {
+      document.getElementById("dialog-title").textContent = title;
+      document.getElementById("dialog-content").innerHTML = html;
+      dialog.showModal();
+    }
+
+    function notify(message) {
+      clearTimeout(toastTimer);
+      toast.textContent = message;
+      toast.hidden = false;
+      toastTimer = setTimeout(() => { toast.hidden = true; }, 4000);
+    }
+
+    const actions = {
+      register() {
+        openDialog("register manifest", '<p>Select a declarative <code>pipes.yaml</code> manifest &rarr; validate schema &rarr; review local commands.</p><div class="notice">Concept demo. No files are modified.</div><div class="dialog-actions"><button class="button primary" data-action="manifest">view manifest</button></div>');
+      },
+      manifest() {
+        dialog.close();
+        navigateTo("release");
+        selectTab("manifest", true);
+      },
+      artifacts() { selectTab("artifacts", true); },
+      run() {
+        setPreset("executing");
+        notify("Pipeline run triggered: executing stage loader + fluid promotion stream active.");
+      },
+      "simulate-promote"() {
+        const order = ["executing", "gate", "promoted"];
+        const nextPreset = order[(order.indexOf(currentPresetKey) + 1) % order.length];
+        setPreset(nextPreset);
+        const labels = {
+          executing: "Simulating beta → gamma promotion + live gamma stage execution",
+          gate: "Simulating gamma approval gate ready for promotion",
+          promoted: "Simulating gamma → prod fluid promotion + live deployment"
+        };
+        notify(labels[nextPreset]);
+      },
+      fetch() {
+        openDialog("fetch / atlas", '<pre>pipes fetch atlas --version 1.5.0 --out ./atlas-1.5.0</pre><p>Cryptographically verified copy from local store.</p><div class="notice">Demo mode. No files are written.</div><div class="dialog-actions"><button class="button" data-action="view-artifacts">view artifacts</button></div>');
+      },
+      "view-artifacts"() {
+        dialog.close();
+        selectTab("artifacts", true);
+      },
+      storage() {
+        openDialog("local store", '<p>42 releases / 7.8 GB<br>Retention: keep all<br>Protected: stage heads, pins, active runs</p><div class="notice">Sample data. Local storage is not a remote backup.</div>');
+      },
+      close() { dialog.close(); }
+    };
+
+    document.addEventListener("click", event => {
+      if (!(event.target instanceof Element)) return;
+      const presetBtn = event.target.closest("[data-preset]");
+      if (presetBtn) {
+        setPreset(presetBtn.dataset.preset);
+        return;
+      }
+      const action = event.target.closest("[data-action]");
+      if (action) {
+        actions[action.dataset.action]();
+        return;
+      }
+      const tab = event.target.closest("[data-tab]");
+      if (tab) {
+        selectTab(tab.dataset.tab);
+        return;
+      }
+      const node = event.target.closest("[data-stage]");
+      if (!node) return;
+      if (node.dataset.project === "atlas") {
+        const fromOverview = !document.getElementById("overview-screen").hidden;
+        if (fromOverview) navigateTo("release");
+        selectStage(node.dataset.stage);
+        if (fromOverview) document.querySelector(`#release-flow [data-stage="${node.dataset.stage}"]`).focus({ preventScroll: true });
+      } else {
+        const project = overviewProjects.find(item => item.id === node.dataset.project);
+        const stage = project.stages[stageNames.indexOf(node.dataset.stage)];
+        openDialog(`${project.id} / ${node.dataset.stage}`, `<p>v${project.version} · ${stage.badge} · ${stage.result}</p><div class="notice">Sample pipeline. Click atlas to explore the full state machine.</div>`);
+      }
+    });
+
+    document.querySelector('[role="tablist"]').addEventListener("keydown", event => {
+      const tabs = Array.from(document.querySelectorAll("[data-tab]"));
+      const index = tabs.indexOf(document.activeElement);
+      if (index < 0) return;
+      let next;
+      if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
+      else if (event.key === "ArrowLeft") next = (index + tabs.length - 1) % tabs.length;
+      else if (event.key === "Home") next = 0;
+      else if (event.key === "End") next = tabs.length - 1;
+      else return;
+      event.preventDefault();
+      selectTab(tabs[next].dataset.tab, true);
+    });
+
+    window.addEventListener("hashchange", () => showScreen(true));
+    renderAllFlows();
+    showScreen();
+  </script>
+</body>
+</html>

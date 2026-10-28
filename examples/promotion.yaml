@@ -1,0 +1,45 @@
+api: pipes/v1
+app: pipes-promotion
+name: Pipes / promotion criteria
+
+source:
+  path: ..
+
+version:
+  scheme: semver
+  from: VERSION
+
+stages:
+  - id: beta
+    checks:
+      - id: smoke
+        exec: [./ci/smoke.sh]
+    require: [checks.passed]
+    consumers:
+      - id: lab-device
+        name: Lab workstation
+        target: "Lab workstation / Applications/Pipes.app"
+        approval: manual
+      - id: personal-device
+        name: Personal MacBook
+        target: "Personal MacBook / Applications/Pipes.app"
+        approval: manual
+    promotion:
+      criteria:
+        - id: smoke-tests
+          kind: harness
+          check: smoke
+          expected_tests: 50
+          minimum_passed: 45
+        - id: lab-delivery
+          kind: deployment
+          consumer: lab-device
+          requirement: required
+        - id: personal-delivery
+          kind: deployment
+          consumer: personal-device
+          requirement: optional
+
+  - id: prod
+    after: [beta]
+    require: [previous.passed, approval.local]

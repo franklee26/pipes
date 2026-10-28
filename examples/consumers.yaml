@@ -1,0 +1,34 @@
+api: pipes/v1
+app: pipes-consumers
+name: Pipes / personal deployments
+
+source:
+  path: ..
+
+version:
+  scheme: semver
+  from: VERSION
+
+stages:
+  - id: test
+    checks:
+      - id: unit
+        exec: [cargo, test, --locked, -p, pipes-core]
+    require: [checks.passed]
+
+  - id: beta
+    after: [test]
+    require: [previous.passed]
+    consumers:
+      - id: personal-mac
+        name: Personal MacBook
+        target: "Personal MacBook / Applications/Pipes.app"
+        approval: manual
+      - id: test-workstation
+        name: Test workstation
+        target: "Lab workstation / Applications/Pipes.app"
+        approval: manual
+
+  - id: prod
+    after: [beta]
+    require: [previous.passed, approval.local]

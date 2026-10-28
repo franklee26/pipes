@@ -1,0 +1,45 @@
+.criteria-list, .criteria-results, .harness-history, .promotion-approval-history { list-style: none; margin: 0; padding: 0; }
+.criterion-row { padding: 14px 20px; border-top: 1px solid var(--line); }
+.criterion-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+.criterion-heading > * { min-width: 0; overflow-wrap: anywhere; }
+.criterion-heading strong { font-size: 13px; }
+.criterion-requirement { color: var(--green); font-size: 10px; text-transform: uppercase; font-weight: bold; }
+.criterion-requirement.optional { color: var(--amber); }
+.criterion-definition { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; margin: 7px 0 0; overflow-wrap: anywhere; }
+.criterion-optional-note { flex-basis: 100%; color: var(--muted); font-size: 11px; }
+.promotion-reference-form { padding: 16px 20px; border-top: 1px solid var(--line); background: var(--paper); }
+.promotion-reference-form > label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 7px; }
+.promotion-reference-field { display: flex; flex-wrap: wrap; gap: 10px; }
+.promotion-reference-field input { min-width: 0; flex: 1 1 200px; border: 1px solid var(--line-strong); border-radius: 3px; padding: 8px 11px; background: var(--surface-raised); font-size: 12px; }
+.promotion-assessment { padding: 16px 20px; border-top: 1px solid var(--line); }
+.assessment-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.assessment-heading code { font-weight: bold; overflow-wrap: anywhere; min-width: 0; }
+.criterion-result { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); }
+.criterion-result > .icon { margin-top: 3px; }
+.criterion-result.satisfied > .icon { color: var(--green); }
+.criterion-result.blocked > .icon { color: var(--red); }
+.criterion-result.warning > .icon { color: var(--amber); }
+.criterion-result .criterion-heading > span { font-size: 10px; text-transform: uppercase; }
+.criterion-result p { font-size: 12px; margin: 5px 0; overflow-wrap: anywhere; }
+.criterion-evidence { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 10px; color: var(--muted); overflow-wrap: anywhere; }
+.optional-warning { padding: 12px 14px; border: 1px solid #d5ab73; border-left: 3px solid var(--amber); border-radius: 2px; background: var(--amber-soft); color: #70430f; font-size: 12px; overflow-wrap: anywhere; }
+.promotion-approve-action { padding: 0 20px 18px; }
+.promotion-scope-note { padding: 13px 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; background: #f8f6ee; }
+.promotion-scope-note .requirements { padding: 10px 0 0; margin-top: 8px; background: none; }
+.promotion-scope-note .eyebrow { font-size: 10px; flex-basis: 100%; }
+.promotion-empty { margin: 0; padding: 20px; color: var(--muted); font-size: 12px; }
+.harness-count-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 8px; }
+.harness-count-fields label { font-size: 12px; }
+.harness-count-fields input { display: block; width: 100%; min-width: 0; margin-top: 6px; border: 1px solid var(--line-strong); border-radius: 3px; padding: 9px 11px; background: var(--surface-raised); }
+.harness-history > li, .promotion-approval-history > li { padding: 16px 20px; border-top: 1px solid var(--line); }
+.harness-history .criterion-heading > span { font-size: 12px; font-weight: bold; }
+.harness-history > li > .muted { display: block; margin-top: 6px; font-size: 11px; }
+.promotion-approval-history > li > p { font-size: 12px; overflow-wrap: anywhere; }
+.promotion-approval-history .with-skips { border-left: 3px solid var(--amber); background: var(--orange-tint); }
+.promotion-history-heading { padding: 16px 20px 8px; margin: 0; }
+.promotion-inspect-button { margin-top: 10px; }
+.promotion-section-heading { margin-top: 24px; }
+@media (max-width: 600px) {
+  .criterion-row, .promotion-reference-form, .promotion-assessment, .promotion-scope-note, .harness-history > li, .promotion-approval-history > li { padding-left: 14px; padding-right: 14px; }
+  .harness-count-fields { gap: 10px; }
+}
